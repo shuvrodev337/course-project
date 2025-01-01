@@ -14,10 +14,33 @@ const createCourse = async (req: Request, res: Response) => {
       data: result,
     });
   } catch (err) {
-    console.log(err);
+    res.status(400).json({
+      success: false,
+      message: 'Something went wrong!',
+      error: err,
+    });
+  }
+};
+const getCourses = async (req: Request, res: Response) => {
+  try {
+    const query = req.query;
+    const result = await CourseServices.getCoursesFromDb(query);
+    res.status(201).json({
+      success: true,
+      statusCode: 201,
+      message: 'Course retrieved successfully',
+      data: result,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: 'Something went wrong!',
+      error: err,
+    });
   }
 };
 
 export const CourseController = {
   createCourse,
+  getCourses,
 };

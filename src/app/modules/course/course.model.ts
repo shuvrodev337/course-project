@@ -20,8 +20,9 @@ const CourseSchema = new Schema<TCourse>({
   endDate: { type: String, required: true },
   language: { type: String, required: true },
   provider: { type: String, required: true },
-  durationInWeeks: { type: Number, required: true },
+  durationInWeeks: { type: Number },
   details: { type: DetailsSchema, required: true },
+  categoryId: { type: Schema.ObjectId, required: true, ref: 'Category' },
 });
 
 export const Course = model<TCourse>('Course', CourseSchema);

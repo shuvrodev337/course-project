@@ -1,5 +1,7 @@
 // 0 ? []  {}
 
+import { Types } from 'mongoose';
+
 export type TTag = {
   name: string;
   isDeleted?: boolean;
@@ -19,6 +21,7 @@ export type TCourse = {
   endDate: string; // The end date of the course
   language: string; // The language in which the course is conducted
   provider: string; // The provider of the course
-  durationInWeeks: number; // Overall duration of the course in weeks
+  durationInWeeks?: number; // Overall duration of the course in weeks
   details: TDetails; // Detailed information about the course
+  categoryId: Types.ObjectId;
 };
