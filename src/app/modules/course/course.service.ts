@@ -17,6 +17,8 @@ const createCourseIntoDb = async (payload: TCourse) => {
   return result;
 };
 
+// My Way
+/*
 const getCoursesFromDb = async (query: Record<string, unknown>) => {
   const queryObj = { ...query };
   const excludedFields = ['searchTerm', 'sort', 'page', 'limit', 'fields'];
@@ -54,6 +56,46 @@ const getCoursesFromDb = async (query: Record<string, unknown>) => {
   const fieldLimitQuery = paginateQuery.select(fields);
 
   const result = await fieldLimitQuery.populate('categoryId');
+  return result;
+};
+*/
+// New way
+const getCoursesFromDb = async (query: Record<string, unknown>) => {
+  const {
+    searchTerm = '',
+    sort = '-createdAt',
+    page = 1,
+    limit = 10,
+    fields = '-__v',
+    ...filters
+  } = query;
+  console.log('query->', query);
+
+  // Handle search conditions
+  const courseSearchFields = ['title', 'instructor', 'provider'];
+  const searchConditions = searchTerm
+    ? {
+        $or: courseSearchFields.map((field) => ({
+          [field]: { $regex: searchTerm as string, $options: 'i' },
+        })),
+      }
+    : {};
+  console.log('searchConditions->', searchConditions);
+  // Combine search conditions with other filters
+  const finalQuery = { ...filters, ...searchConditions };
+  console.log('finalQuery->', finalQuery);
+
+  // Pagination setup
+  const skip = (Number(page) - 1) * Number(limit);
+
+  // Query execution
+  const result = await Course.find(finalQuery)
+    .sort(sort as string)
+    .skip(skip)
+    .limit(Number(limit))
+    .select((fields as string)?.split(',').join(' '))
+    .populate('categoryId');
+
   return result;
 };
 
