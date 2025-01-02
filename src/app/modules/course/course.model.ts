@@ -11,18 +11,23 @@ const DetailsSchema = new Schema<TDetails>({
   description: { type: String, required: true },
 });
 
-const CourseSchema = new Schema<TCourse>({
-  title: { type: String, required: true, unique: true },
-  instructor: { type: String, required: true },
-  price: { type: Number, required: true },
-  tags: { type: [TagSchema], required: true },
-  startDate: { type: String, required: true },
-  endDate: { type: String, required: true },
-  language: { type: String, required: true },
-  provider: { type: String, required: true },
-  durationInWeeks: { type: Number },
-  details: { type: DetailsSchema, required: true },
-  categoryId: { type: Schema.ObjectId, required: true, ref: 'Category' },
-});
+const CourseSchema = new Schema<TCourse>(
+  {
+    title: { type: String, required: true, unique: true },
+    instructor: { type: String, required: true },
+    price: { type: Number, required: true },
+    tags: { type: [TagSchema], required: true },
+    startDate: { type: String, required: true },
+    endDate: { type: String, required: true },
+    language: { type: String, required: true },
+    provider: { type: String, required: true },
+    durationInWeeks: { type: Number },
+    details: { type: DetailsSchema, required: true },
+    categoryId: { type: Schema.ObjectId, required: true, ref: 'Category' },
+  },
+  {
+    timestamps: true,
+  },
+);
 
 export const Course = model<TCourse>('Course', CourseSchema);
