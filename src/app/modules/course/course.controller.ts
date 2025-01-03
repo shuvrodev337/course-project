@@ -25,7 +25,7 @@ const getCourses = async (req: Request, res: Response) => {
   try {
     const query = req.query;
     const result = await CourseServices.getCoursesFromDb(query);
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       statusCode: 201,
       message: 'Course retrieved successfully',
