@@ -1,28 +1,61 @@
+/* eslint-disable @typescript-eslint/no-this-alias */
 import { model, Schema } from 'mongoose';
 import { TUser } from './user.interface';
+import config from '../../config';
+import bcrypt from 'bcrypt';
 
-const UserSchema = new Schema<TUser>({
-  email: {
-    type: String,
-    required: true,
-    trim: true,
-    unique: true,
+const userSchema = new Schema<TUser>(
+  {
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
+    },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      select: false, // Ensure the password is not selected by default in queries
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
   },
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  password: {
-    type: String,
-    required: true,
-    select: 0,
-  },
-  role: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user',
+  { timestamps: true },
+);
+
+// Mongoose Middleware: Hash password before saving
+userSchema.pre('save', async function (next) {
+  const user = this;
+  if (user.isModified('password')) {
+    user.password = await bcrypt.hash(
+      user.password,
+      Number(config.bcrypt_salt_rounds),
+    );
+  }
+  next();
+});
+
+// Transform JSON and Object responses to exclude the password field
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password; // Remove the password field
+    return ret;
   },
 });
 
-export const User = model<TUser>('User', UserSchema);
+userSchema.set('toObject', {
+  transform: (doc, ret) => {
+    delete ret.password; // Remove the password field
+    return ret;
+  },
+});
+
+export const User = model<TUser>('User', userSchema);

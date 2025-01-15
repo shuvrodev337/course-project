@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import router from './app/routes';
+import globalErrorHandler from './app/middlewares/globalErrorHandler';
 const app: Application = express();
 
 // Parsers
@@ -14,5 +15,5 @@ const getAController = (req: Request, res: Response) => {
   res.send(a);
 };
 app.get('/', getAController);
-
+app.use(globalErrorHandler);
 export default app;
