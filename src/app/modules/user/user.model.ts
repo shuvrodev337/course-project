@@ -3,7 +3,15 @@ import { model, Schema } from 'mongoose';
 import { TUser, UserModel } from './user.interface';
 import config from '../../config';
 import bcrypt from 'bcrypt';
-
+const passwordHistorySchema = new Schema(
+  {
+    oldPassword: {
+      type: String,
+      required: true,
+    },
+  },
+  { _id: false, timestamps: true }, // No need for a unique identifier for each subdocument
+);
 const userSchema = new Schema<TUser, UserModel>(
   {
     email: {
@@ -27,6 +35,10 @@ const userSchema = new Schema<TUser, UserModel>(
       enum: ['user', 'admin'],
       default: 'user',
     },
+    passwordHistory: {
+      type: [passwordHistorySchema],
+      select: false, // Ensure the password is not selected by default in queries
+    },
   },
   { timestamps: true },
 );
@@ -47,6 +59,7 @@ userSchema.pre('save', async function (next) {
 userSchema.set('toJSON', {
   transform: (doc, ret) => {
     delete ret.password; // Remove the password field
+    delete ret.passwordHistory;
     return ret;
   },
 });
@@ -54,6 +67,8 @@ userSchema.set('toJSON', {
 userSchema.set('toObject', {
   transform: (doc, ret) => {
     delete ret.password; // Remove the password field
+    delete ret.passwordHistory;
+
     return ret;
   },
 });

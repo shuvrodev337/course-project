@@ -2,11 +2,15 @@
 import { Model } from 'mongoose';
 import { USER_ROLE } from './user.constant';
 
+type TPasswordHistory = {
+  oldPassword: string;
+};
 export type TUser = {
   username: string;
   email: string;
   password: string;
   role: 'user' | 'admin';
+  passwordHistory: TPasswordHistory[];
 };
 export type TUserRole = keyof typeof USER_ROLE;
 

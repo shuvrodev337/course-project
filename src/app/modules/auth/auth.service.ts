@@ -78,13 +78,11 @@ const changePassword = async (
     throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
   }
 
-  if (
-    !(await User.isPasswordMatched(passwordData?.oldPassword, user?.password))
-  ) {
+  if (!(await User.isPasswordMatched(oldPassword, user?.password))) {
     throw new AppError(StatusCodes.FORBIDDEN, 'Incorrect old password!');
   }
   const hashedNewPassword = await bcrypt.hash(
-    passwordData.newPassword,
+    newPassword,
     Number(config.bcrypt_salt_rounds),
   );
 
