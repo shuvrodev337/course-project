@@ -1,29 +1,30 @@
 import z from 'zod';
 
-export const createUserValidationSchema = z.object({
+const updateUserValidationSchema = z.object({
   body: z.object({
-    user: z.object({
-      username: z
-        .string({
-          invalid_type_error: 'UserName must be a string',
-        })
-        .max(20, {
-          message: 'UserName cannot be more than 20 characters long',
-        }),
-      password: z.string({
-        invalid_type_error: 'Password must be a string',
-      }),
-      email: z
-        .string({
-          invalid_type_error: 'Email must be a string',
-        })
-        .email({ message: 'Invalid email format' }),
-    }),
+    user: z
+      .object({
+        username: z
+          .string({
+            invalid_type_error: 'UserName must be a string',
+          })
+          .max(20, {
+            message: 'UserName cannot be more than 20 characters long',
+          })
+          .optional(),
+        email: z
+          .string({
+            invalid_type_error: 'Email must be a string',
+          })
+          .email({ message: 'Invalid email format' })
+          .optional(),
+      })
+      .strict(), // ensures no extra fields such as password can not  be included
   }),
 });
 
 export const UserValidation = {
-  createUserValidationSchema,
+  updateUserValidationSchema,
 };
 /**
        .min(8, { message: 'Password must be at least 8 characters long' })

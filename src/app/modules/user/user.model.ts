@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-this-alias */
 import { model, Schema } from 'mongoose';
-import { TUser } from './user.interface';
+import { TUser, UserModel } from './user.interface';
 import config from '../../config';
 import bcrypt from 'bcrypt';
 
-const userSchema = new Schema<TUser>(
+const userSchema = new Schema<TUser, UserModel>(
   {
     email: {
       type: String,
@@ -58,4 +58,22 @@ userSchema.set('toObject', {
   },
 });
 
-export const User = model<TUser>('User', userSchema);
+//Password related static methods
+
+userSchema.statics.isPasswordMatched = async function (
+  plainTextPassword,
+  hashedPassword,
+) {
+  return await bcrypt.compare(plainTextPassword, hashedPassword);
+};
+
+userSchema.statics.isPasswordChangedAfterJWTissued = function (
+  passwordChangedAt,
+  jwtIssuedAt,
+) {
+  const passwordChangedTime = new Date(passwordChangedAt).getTime() / 1000;
+
+  return passwordChangedTime > jwtIssuedAt;
+};
+
+export const User = model<TUser, UserModel>('User', userSchema);

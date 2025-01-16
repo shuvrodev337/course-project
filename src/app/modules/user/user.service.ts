@@ -3,12 +3,21 @@
 import { TUser } from './user.interface';
 import { User } from './user.model';
 
-const createUserIntoDb = async (payload: TUser) => {
-  console.log(payload);
-  payload.role = 'user';
-  const result = await User.create(payload);
+const getUsersFromDb = async () => {
+  const result = await User.find();
   return result;
 };
-const getUsersFromDb = async (payload: TUser) => {};
+const getSingleUserFromDb = async (id: string) => {
+  const result = await User.findById(id);
+  return result;
+};
+const updateUserIntoDb = async (id: string, payload: Partial<TUser>) => {
+  const result = await User.findByIdAndUpdate(id, payload, { new: true });
+  return result;
+};
 
-export const UserServices = { createUserIntoDb };
+export const UserServices = {
+  getUsersFromDb,
+  getSingleUserFromDb,
+  updateUserIntoDb,
+};
