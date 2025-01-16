@@ -4,9 +4,11 @@ import { StatusCodes } from 'http-status-codes';
 import AppError from '../../errors/AppError';
 import { TUser } from '../user/user.interface';
 import { User } from '../user/user.model';
-import { TLoginUser } from './auth.interface';
+import { TChangePassword, TLoginUser } from './auth.interface';
 import config from '../../config';
 import { createToken } from './auth.utils';
+import { JwtPayload } from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 // User Registration
 const createUserIntoDb = async (payload: TUser) => {
@@ -35,7 +37,6 @@ const createUserIntoDb = async (payload: TUser) => {
 
 const loginUser = async (payload: TLoginUser) => {
   const { username, password } = payload;
-  console.log(payload);
   const user = await User.findOne({ username }).select('+password'); // Explicitly Select password, which is excluded by default.
   if (!user) {
     throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
@@ -63,5 +64,37 @@ const loginUser = async (payload: TLoginUser) => {
 
   return { user, accessToken, refreshToken };
 };
+const changePassword = async (
+  userData: JwtPayload,
+  passwordData: TChangePassword,
+) => {
+  //  console.log(userData);
+  //  console.log(passwordData);
 
-export const AuthServices = { createUserIntoDb, loginUser };
+  const { oldPassword, newPassword } = passwordData;
+
+  const user = await User.findById(userData._id).select('+password');
+  if (!user) {
+    throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+
+  if (
+    !(await User.isPasswordMatched(passwordData?.oldPassword, user?.password))
+  ) {
+    throw new AppError(StatusCodes.FORBIDDEN, 'Incorrect old password!');
+  }
+  const hashedNewPassword = await bcrypt.hash(
+    passwordData.newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  const result = await User.findByIdAndUpdate(
+    user._id,
+    { password: hashedNewPassword },
+    { new: true },
+  );
+
+  return result;
+};
+
+export const AuthServices = { createUserIntoDb, loginUser, changePassword };
