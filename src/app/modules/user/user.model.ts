@@ -60,6 +60,7 @@ userSchema.pre('save', async function (next) {
       user.password,
       Number(config.bcrypt_salt_rounds),
     );
+    /*  
     // Save current password to history with timestamp
     const oldPasswordEntry = {
       oldPassword: user.password, // Current password before modification
@@ -70,6 +71,7 @@ userSchema.pre('save', async function (next) {
     user.passwordHistory = user.passwordHistory || [];
     user.passwordHistory.push(oldPasswordEntry);
     console.log(user.passwordHistory);
+    */
   }
   next();
 });

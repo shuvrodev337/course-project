@@ -72,14 +72,15 @@ const changePassword = async (
   const user = await User.findById(userData._id)
     .select('+password')
     .select('+passwordHistory');
-  // .sort({ 'passwordHistory.changedAt': -1 });
   if (!user) {
     throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
   }
+
   // check if the old password match the current password
   if (!(await User.isPasswordMatched(oldPassword, user?.password))) {
     throw new AppError(StatusCodes.FORBIDDEN, 'Incorrect old password!');
   }
+
   // Check if the new password matches the current password
   const isNewPasswordSameAsCurrent = await User.isPasswordMatched(
     newPassword,
@@ -91,6 +92,14 @@ const changePassword = async (
       'New password cannot be the same as the current password!',
     );
   }
+
+  /* password history check logic
+   * NO password will go to passwordHistory field during creating user.
+   * During change password,  the password which is being changed(user.password), will go to passwordHistory
+   * passwordHistory field is set to have only latest 2 entries.
+   * new password will get checked with current password(user.password)
+   * new password will get checked with previous two passwords from passwordHistory.
+   */
 
   // check if the new password matches the previously set passwords
 
@@ -110,99 +119,28 @@ const changePassword = async (
     Number(config.bcrypt_salt_rounds),
   );
   // create new entry for passwordHistory field
-  const oldPasswordHistoryEntry = {
-    oldPassword: hashedNewPassword,
+  const newPasswordHistoryEntry = {
+    oldPassword: user.password,
     changedAt: new Date(),
   };
+  // Update the password history to maintain only the last 2 entries
+  const updatedPasswordHistory = [
+    ...user.passwordHistory,
+    newPasswordHistoryEntry,
+  ];
+  if (updatedPasswordHistory.length > 2) {
+    updatedPasswordHistory.shift(); // Remove the oldest entry
+  }
 
   const result = await User.findByIdAndUpdate(
     user._id,
     {
       password: hashedNewPassword, // set user password
-      $addToSet: { passwordHistory: oldPasswordHistoryEntry }, // add new entry to passwordHistory
+      $set: { passwordHistory: updatedPasswordHistory }, // set new entry to passwordHistory
     },
     { new: true },
   );
   return result;
-};
-
-const changePassword2 = async (
-  userData: JwtPayload,
-  passwordData: TChangePassword,
-) => {
-  const { oldPassword, newPassword } = passwordData;
-
-  // Retrieve the user along with the password and passwordHistory fields
-  const user = await User.findById(userData._id)
-    .select('+password')
-    .select('+passwordHistory');
-  if (!user) {
-    throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
-  }
-
-  // Check if the old password matches the current password
-  const isOldPasswordMatched = await User.isPasswordMatched(
-    oldPassword,
-    user.password,
-  );
-  if (!isOldPasswordMatched) {
-    throw new AppError(StatusCodes.FORBIDDEN, 'Incorrect old password!');
-  }
-
-  // Check if the new password matches the current password
-  const isNewPasswordSameAsCurrent = await User.isPasswordMatched(
-    newPassword,
-    user.password,
-  );
-  if (isNewPasswordSameAsCurrent) {
-    throw new AppError(
-      StatusCodes.FORBIDDEN,
-      'New password cannot be the same as the current password!',
-    );
-  }
-
-  // Check if the new password matches any of the last 2 passwords
-  const recentPasswordHistory = user.passwordHistory.slice(-2); // Get the last 2 entries
-  for (const { oldPassword } of recentPasswordHistory) {
-    const isPasswordMatched = await User.isPasswordMatched(
-      newPassword,
-      oldPassword,
-    );
-    if (isPasswordMatched) {
-      throw new AppError(
-        StatusCodes.FORBIDDEN,
-        'New password cannot be the same as any of the last 2 passwords!',
-      );
-    }
-  }
-
-  // Hash the new password
-  const hashedNewPassword = await bcrypt.hash(
-    newPassword,
-    Number(config.bcrypt_salt_rounds),
-  );
-
-  // Create a new entry for passwordHistory
-  const newPasswordHistoryEntry = {
-    oldPassword: hashedNewPassword, // Store the current password before updating
-    changedAt: new Date(),
-  };
-
-  // Update the user password and manage password history
-  user.password = hashedNewPassword; // Update the current password
-  user.passwordHistory.push(newPasswordHistoryEntry); // Add the current password to history
-
-  // Limit password history to the last 2 entries
-  if (user.passwordHistory.length > 2) {
-    user.passwordHistory.shift(); // Remove the oldest entry
-  }
-
-  // Save the user document
-  await user.save();
-
-  return {
-    message: 'Password updated successfully!',
-  };
 };
 
 export const AuthServices = { createUserIntoDb, loginUser, changePassword };
