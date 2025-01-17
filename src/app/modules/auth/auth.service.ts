@@ -12,10 +12,8 @@ import bcrypt from 'bcrypt';
 
 // User Registration
 const createUserIntoDb = async (payload: TUser) => {
-  console.log(payload);
   const { username, email } = payload;
   payload.role = 'user';
-
   // Check if a user with the same username or email already exists
   const existingUser = await User.findOne({
     $or: [{ username }, { email }],
@@ -64,35 +62,147 @@ const loginUser = async (payload: TLoginUser) => {
 
   return { user, accessToken, refreshToken };
 };
+
 const changePassword = async (
   userData: JwtPayload,
   passwordData: TChangePassword,
 ) => {
-  //  console.log(userData);
-  //  console.log(passwordData);
-
   const { oldPassword, newPassword } = passwordData;
 
-  const user = await User.findById(userData._id).select('+password');
+  const user = await User.findById(userData._id)
+    .select('+password')
+    .select('+passwordHistory');
+  // .sort({ 'passwordHistory.changedAt': -1 });
+  if (!user) {
+    throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+  // check if the old password match the current password
+  if (!(await User.isPasswordMatched(oldPassword, user?.password))) {
+    throw new AppError(StatusCodes.FORBIDDEN, 'Incorrect old password!');
+  }
+  // Check if the new password matches the current password
+  const isNewPasswordSameAsCurrent = await User.isPasswordMatched(
+    newPassword,
+    user.password,
+  );
+  if (isNewPasswordSameAsCurrent) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      'New password cannot be the same as the current password!',
+    );
+  }
+
+  // check if the new password matches the previously set passwords
+
+  const recentPasswordHistory = user.passwordHistory;
+
+  for (const passwordData of recentPasswordHistory) {
+    if (await User.isPasswordMatched(newPassword, passwordData.oldPassword)) {
+      throw new AppError(
+        StatusCodes.FORBIDDEN,
+        'Can not use old password as new !',
+      );
+    }
+  }
+  // hash new user password
+  const hashedNewPassword = await bcrypt.hash(
+    newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+  // create new entry for passwordHistory field
+  const oldPasswordHistoryEntry = {
+    oldPassword: hashedNewPassword,
+    changedAt: new Date(),
+  };
+
+  const result = await User.findByIdAndUpdate(
+    user._id,
+    {
+      password: hashedNewPassword, // set user password
+      $addToSet: { passwordHistory: oldPasswordHistoryEntry }, // add new entry to passwordHistory
+    },
+    { new: true },
+  );
+  return result;
+};
+
+const changePassword2 = async (
+  userData: JwtPayload,
+  passwordData: TChangePassword,
+) => {
+  const { oldPassword, newPassword } = passwordData;
+
+  // Retrieve the user along with the password and passwordHistory fields
+  const user = await User.findById(userData._id)
+    .select('+password')
+    .select('+passwordHistory');
   if (!user) {
     throw new AppError(StatusCodes.NOT_FOUND, 'User not found');
   }
 
-  if (!(await User.isPasswordMatched(oldPassword, user?.password))) {
+  // Check if the old password matches the current password
+  const isOldPasswordMatched = await User.isPasswordMatched(
+    oldPassword,
+    user.password,
+  );
+  if (!isOldPasswordMatched) {
     throw new AppError(StatusCodes.FORBIDDEN, 'Incorrect old password!');
   }
+
+  // Check if the new password matches the current password
+  const isNewPasswordSameAsCurrent = await User.isPasswordMatched(
+    newPassword,
+    user.password,
+  );
+  if (isNewPasswordSameAsCurrent) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      'New password cannot be the same as the current password!',
+    );
+  }
+
+  // Check if the new password matches any of the last 2 passwords
+  const recentPasswordHistory = user.passwordHistory.slice(-2); // Get the last 2 entries
+  for (const { oldPassword } of recentPasswordHistory) {
+    const isPasswordMatched = await User.isPasswordMatched(
+      newPassword,
+      oldPassword,
+    );
+    if (isPasswordMatched) {
+      throw new AppError(
+        StatusCodes.FORBIDDEN,
+        'New password cannot be the same as any of the last 2 passwords!',
+      );
+    }
+  }
+
+  // Hash the new password
   const hashedNewPassword = await bcrypt.hash(
     newPassword,
     Number(config.bcrypt_salt_rounds),
   );
 
-  const result = await User.findByIdAndUpdate(
-    user._id,
-    { password: hashedNewPassword },
-    { new: true },
-  );
+  // Create a new entry for passwordHistory
+  const newPasswordHistoryEntry = {
+    oldPassword: hashedNewPassword, // Store the current password before updating
+    changedAt: new Date(),
+  };
 
-  return result;
+  // Update the user password and manage password history
+  user.password = hashedNewPassword; // Update the current password
+  user.passwordHistory.push(newPasswordHistoryEntry); // Add the current password to history
+
+  // Limit password history to the last 2 entries
+  if (user.passwordHistory.length > 2) {
+    user.passwordHistory.shift(); // Remove the oldest entry
+  }
+
+  // Save the user document
+  await user.save();
+
+  return {
+    message: 'Password updated successfully!',
+  };
 };
 
 export const AuthServices = { createUserIntoDb, loginUser, changePassword };

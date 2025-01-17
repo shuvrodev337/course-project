@@ -1,17 +1,23 @@
 /* eslint-disable @typescript-eslint/no-this-alias */
 import { model, Schema } from 'mongoose';
-import { TUser, UserModel } from './user.interface';
+import { TPasswordHistory, TUser, UserModel } from './user.interface';
 import config from '../../config';
 import bcrypt from 'bcrypt';
-const passwordHistorySchema = new Schema(
+const passwordHistorySchema = new Schema<TPasswordHistory>(
   {
     oldPassword: {
       type: String,
       required: true,
     },
+    changedAt: {
+      type: Date,
+      required: true,
+      default: Date.now, // Automatically set the current date/time
+    },
   },
-  { _id: false, timestamps: true }, // No need for a unique identifier for each subdocument
+  { _id: false }, // No unique identifier for subdocuments
 );
+
 const userSchema = new Schema<TUser, UserModel>(
   {
     email: {
@@ -44,13 +50,26 @@ const userSchema = new Schema<TUser, UserModel>(
 );
 
 // Mongoose Middleware: Hash password before saving
+
 userSchema.pre('save', async function (next) {
   const user = this;
+
   if (user.isModified('password')) {
+    // Hash the new password
     user.password = await bcrypt.hash(
       user.password,
       Number(config.bcrypt_salt_rounds),
     );
+    // Save current password to history with timestamp
+    const oldPasswordEntry = {
+      oldPassword: user.password, // Current password before modification
+      changedAt: new Date(), // Timestamp for when the change occurred
+    };
+
+    // Add to history, keeping existing entries
+    user.passwordHistory = user.passwordHistory || [];
+    user.passwordHistory.push(oldPasswordEntry);
+    console.log(user.passwordHistory);
   }
   next();
 });

@@ -2,8 +2,9 @@
 import { Model } from 'mongoose';
 import { USER_ROLE } from './user.constant';
 
-type TPasswordHistory = {
+export type TPasswordHistory = {
   oldPassword: string;
+  changedAt: Date;
 };
 export type TUser = {
   username: string;
